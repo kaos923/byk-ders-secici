@@ -67,14 +67,12 @@ def guncelle():
         ):
             return
 
-        # yeni kod
         with urllib.request.urlopen(GITHUB_RAW + "ders_secici_full.py") as r:
             yeni_kod = r.read().decode("utf-8")
 
         with open(os.path.abspath(__file__), "w", encoding="utf-8") as f:
             f.write(yeni_kod)
 
-        # version.txt güncelle
         with open(VERSION_DOSYA, "w", encoding="utf-8") as f:
             f.write(yeni_surum)
 
@@ -107,7 +105,7 @@ def ayarlar_pencere():
         sinif = sinif_e.get()
         sube = sube_e.get()
         ayar_kaydet(sinif, sube)
-        baslik.config(text=f"📚 BYK Ders Kitaplığı – {sinif}/{sube}")
+        baslik.config(text=f"📚 BYK Ders Kitaplığı – {sinif}/{sube} (v{MEVCUT_SURUM})")
         win.destroy()
 
     tk.Button(win, text="💾 Kaydet", command=kaydet).pack(pady=8)
@@ -119,19 +117,25 @@ sinif, sube = ayar_yukle()
 root = tk.Tk()
 root.title("BYK Ders Kitaplığı")
 root.geometry("1200x700")
-root.configure(bg="#1e1e2e")
+
+# ===== ARKA PLAN =====
+bg_image = tk.PhotoImage(file=os.path.join(BASE_DIR, "background.png"))
+
+bg_canvas = tk.Canvas(root, width=1200, height=700, highlightthickness=0)
+bg_canvas.pack(fill="both", expand=True)
+bg_canvas.create_image(0, 0, image=bg_image, anchor="nw")
 
 baslik = tk.Label(
-    root,
+    bg_canvas,
     text=f"📚 BYK Ders Kitaplığı – {sinif}/{sube} (v{MEVCUT_SURUM})",
-    bg="#1e1e2e",
+    bg="#000000",
     fg="white",
     font=("Segoe UI", 20, "bold")
 )
 baslik.pack(pady=10)
 
 tk.Button(
-    root,
+    bg_canvas,
     text="⚙ Ayarlar",
     command=ayarlar_pencere,
     bg="#89b4fa",
@@ -139,15 +143,15 @@ tk.Button(
 ).pack(pady=5)
 
 # ================== SCROLL ==================
-canvas = tk.Canvas(root, bg="#1e1e2e", highlightthickness=0)
-scroll = tk.Scrollbar(root, orient="vertical", command=canvas.yview)
+canvas = tk.Canvas(bg_canvas, bg="", highlightthickness=0)
+scroll = tk.Scrollbar(bg_canvas, orient="vertical", command=canvas.yview)
 icerik = tk.Frame(canvas, bg="#1e1e2e")
 
 icerik.bind("<Configure>", lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
 canvas.create_window((0, 0), window=icerik, anchor="nw")
 canvas.configure(yscrollcommand=scroll.set)
 
-canvas.pack(side="left", fill="both", expand=True)
+canvas.pack(side="left", fill="both", expand=True, padx=20, pady=20)
 scroll.pack(side="right", fill="y")
 
 resimler = []
