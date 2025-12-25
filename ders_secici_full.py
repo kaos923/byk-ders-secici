@@ -1,72 +1,60 @@
 import tkinter as tk
 from tkinter import messagebox, filedialog
 from PIL import Image, ImageTk
-import os, sys, subprocess, ctypes, traceback
+import os, sys, subprocess, ctypes
 
+# ================== SABİTLER ==================
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 KITAP_DIR = os.path.join(BASE_DIR, "kitaplar")
 AYAR_DOSYA = os.path.join(BASE_DIR, "ayarlar.txt")
 
-# ================== AYARLAR ==================
+RENK_ARKA = "#1e1e2e"
+RENK_KART = "#313244"
+RENK_YAZI = "white"
+
+# ================== AYAR ==================
 def ayar_yukle():
     try:
-        s = open(AYAR_DOSYA, encoding="utf-8").read().splitlines()
-        return {
-            "tema": s[0],
-            "bg": s[1],
-            "mod": s[2],
-            "son": s[3] if len(s) > 3 else ""
-        }
+        return open(AYAR_DOSYA, encoding="utf-8").read().strip()
     except:
-        return {"tema": "dark", "bg": "1", "mod": "ogrenci", "son": ""}
+        return ""
 
-def ayar_kaydet():
+def ayar_kaydet(son):
     with open(AYAR_DOSYA, "w", encoding="utf-8") as f:
-        f.write("\n".join([
-            ayar["tema"],
-            ayar["bg"],
-            ayar["mod"],
-            ayar["son"]
-        ]))
+        f.write(son)
 
-ayar = ayar_yukle()
-
-# ================== TEMA ==================
-def tema_renk():
-    return {
-        "bg": "#1e1e2e" if ayar["tema"] == "dark" else "#f5f5f5",
-        "kart": "#313244" if ayar["tema"] == "dark" else "#ffffff",
-        "fg": "white" if ayar["tema"] == "dark" else "black"
-    }
+son_acilan = ayar_yukle()
 
 # ================== PDF ==================
 def pdf_ac(yol):
     try:
-        ayar["son"] = yol
-        ayar_kaydet()
+        ayar_kaydet(yol)
         os.startfile(yol)
     except Exception as e:
-        messagebox.showerror("PDF", str(e))
+        messagebox.showerror("PDF Hatası", str(e))
 
 # ================== PC ARKA PLAN ==================
 def pc_arka_plan():
     dosya = filedialog.askopenfilename(
-        filetypes=[("Resim", "*.jpg *.png *.bmp")]
+        title="Arka Plan Seç",
+        filetypes=[("Resimler", "*.jpg *.png *.bmp")]
     )
     if dosya:
         ctypes.windll.user32.SystemParametersInfoW(20, 0, dosya, 3)
 
-# ================== KİTAPLARI YÜKLE ==================
+# ================== KİTAPLAR ==================
 def kitaplari_getir():
     kitaplar = []
     if not os.path.exists(KITAP_DIR):
+        messagebox.showerror("Hata", "'kitaplar' klasörü yok!")
         return kitaplar
 
-    for f in os.listdir(KITAP_DIR):
+    for f in sorted(os.listdir(KITAP_DIR)):
         if f.lower().endswith(".pdf"):
             ad = os.path.splitext(f)[0]
+            pdf = os.path.join(KITAP_DIR, f)
             kapak = os.path.join(KITAP_DIR, ad + ".png")
-            kitaplar.append((ad, os.path.join(KITAP_DIR, f), kapak))
+            kitaplar.append((ad, pdf, kapak))
     return kitaplar
 
 # ================== ARAMA ==================
@@ -77,54 +65,75 @@ def filtrele(*_):
     aranan = arama.get().lower()
     kitaplar = kitaplari_getir()
 
-    for i, (ad, pdf, kapak) in enumerate(kitaplar):
+    col = 0
+    row = 0
+
+    for ad, pdf, kapak in kitaplar:
         if aranan not in ad.lower():
             continue
 
-        kart = tk.Frame(icerik, bg=R["kart"], padx=10, pady=10)
-        kart.grid(row=i//4, column=i%4, padx=20, pady=20)
+        kart = tk.Frame(icerik, bg=RENK_KART, padx=10, pady=10)
+        kart.grid(row=row, column=col, padx=20, pady=20)
 
         try:
-            img = ImageTk.PhotoImage(Image.open(kapak).resize((120,160)))
+            if os.path.exists(kapak):
+                img = ImageTk.PhotoImage(Image.open(kapak).resize((120,160)))
+            else:
+                img = None
         except:
             img = None
 
         btn = tk.Button(
-            kart, image=img, text=ad if not img else "",
-            bg=R["kart"], fg=R["fg"],
-            command=lambda p=pdf: pdf_ac(p)
+            kart,
+            image=img,
+            text=ad if not img else "",
+            bg=RENK_KART,
+            fg=RENK_YAZI,
+            command=lambda p=pdf: pdf_ac(p),
+            bd=0
         )
         btn.image = img
         btn.pack()
 
-        tk.Label(kart, text=ad, bg=R["kart"], fg=R["fg"]).pack()
+        tk.Label(kart, text=ad, bg=RENK_KART, fg=RENK_YAZI).pack(pady=5)
+
+        col += 1
+        if col == 4:
+            col = 0
+            row += 1
 
 # ================== ARAYÜZ ==================
 root = tk.Tk()
+root.title("BYK Ders Kitaplığı")
 root.attributes("-fullscreen", True)
 root.bind("<Escape>", lambda e: root.destroy())
+root.configure(bg=RENK_ARKA)
 
-R = tema_renk()
-root.configure(bg=R["bg"])
-
-tk.Label(root, text="📚 BYK Ders Kitaplığı",
-         font=("Segoe UI", 22, "bold"),
-         bg=R["bg"], fg=R["fg"]).pack(pady=10)
+tk.Label(
+    root,
+    text="📚 BYK Ders Kitaplığı",
+    font=("Segoe UI", 22, "bold"),
+    bg=RENK_ARKA,
+    fg=RENK_YAZI
+).pack(pady=10)
 
 arama = tk.StringVar()
 arama.trace_add("write", filtrele)
 
-tk.Entry(root, textvariable=arama,
-         font=("Segoe UI", 14)).pack(pady=5)
+tk.Entry(
+    root,
+    textvariable=arama,
+    font=("Segoe UI", 14)
+).pack(pady=5)
 
-canvas = tk.Canvas(root, bg=R["bg"], highlightthickness=0)
+canvas = tk.Canvas(root, bg=RENK_ARKA, highlightthickness=0)
 scroll = tk.Scrollbar(root, command=canvas.yview)
-icerik = tk.Frame(canvas, bg=R["bg"])
+icerik = tk.Frame(canvas, bg=RENK_ARKA)
 
 icerik.bind("<Configure>", lambda e:
     canvas.configure(scrollregion=canvas.bbox("all")))
 
-canvas.create_window((0,0), window=icerik, anchor="nw")
+canvas.create_window((0, 0), window=icerik, anchor="nw")
 canvas.configure(yscrollcommand=scroll.set)
 
 canvas.pack(fill="both", expand=True)
@@ -132,20 +141,20 @@ scroll.pack(side="right", fill="y")
 
 filtrele()
 
-if ayar["son"] and os.path.exists(ayar["son"]):
-    pdf_ac(ayar["son"])
+# Son açılan kitabı otomatik açma (isteğe bağlı)
+if son_acilan and os.path.exists(son_acilan):
+    pdf_ac(son_acilan)
 
-tk.Button(root, text="🖼 PC Arka Plan",
-          command=pc_arka_plan).pack(pady=5)
+tk.Button(
+    root,
+    text="🖼 PC Arka Planını Değiştir",
+    command=pc_arka_plan
+).pack(pady=5)
 
-tk.Button(root, text="🌙 Tema Değiştir",
-          command=lambda: (
-              ayar.update({"tema": "light" if ayar["tema"]=="dark" else "dark"}),
-              ayar_kaydet(),
-              os.execl(sys.executable, sys.executable, *sys.argv)
-          )).pack(pady=5)
-
-tk.Button(root, text="❌ Çıkış",
-          command=root.destroy).pack(pady=10)
+tk.Button(
+    root,
+    text="❌ Çıkış",
+    command=root.destroy
+).pack(pady=10)
 
 root.mainloop()
