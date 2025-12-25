@@ -1,7 +1,8 @@
 import tkinter as tk
-from tkinter import messagebox
+from tkinter import messagebox, filedialog
 from PIL import Image, ImageTk
 import os, sys, subprocess, urllib.request, traceback
+import ctypes
 
 # ================== SABİTLER ==================
 GITHUB_RAW = "https://raw.githubusercontent.com/kaos923/byk-ders-secici/main/"
@@ -54,11 +55,29 @@ def pdf_ac(pdf):
     except Exception as e:
         messagebox.showerror("PDF Hatası", str(e))
 
-# ================== GÜNCELLE (DÜZELTİLDİ) ==================
+# ================== PC ARKA PLAN ==================
+def pc_arka_plan_degistir():
+    try:
+        dosya = filedialog.askopenfilename(
+            title="Arka Plan Seç",
+            filetypes=[("Resimler", "*.jpg *.jpeg *.png *.bmp")]
+        )
+        if not dosya:
+            return
+
+        ctypes.windll.user32.SystemParametersInfoW(
+            20, 0, dosya, 3
+        )
+
+        messagebox.showinfo("Başarılı", "Bilgisayar arka planı değiştirildi.")
+
+    except Exception as e:
+        messagebox.showerror("Hata", str(e))
+
+# ================== GÜNCELLE ==================
 def guncelle():
     try:
         yerel = yerel_surum_oku()
-
         yeni = urllib.request.urlopen(
             GITHUB_RAW + "version.txt?nocache=" + str(os.urandom(8)),
             timeout=5
@@ -102,7 +121,7 @@ def arka_plan_yukle():
     except:
         pass
 
-# ================== MODERN AYARLAR ==================
+# ================== AYARLAR ==================
 def ayarlar_pencere():
     win = tk.Toplevel(root)
     win.title("Ayarlar")
@@ -113,53 +132,15 @@ def ayarlar_pencere():
     kart = tk.Frame(win, bg=RENK_KART)
     kart.pack(fill="both", expand=True, padx=18, pady=18)
 
-    tk.Label(
+    tk.Label(kart, text="⚙ Ayarlar", bg=RENK_KART, fg="white",
+             font=("Segoe UI", 17, "bold")).pack(pady=20)
+
+    tk.Button(
         kart,
-        text="⚙ Uygulama Ayarları",
-        bg=RENK_KART,
-        fg="white",
-        font=("Segoe UI", 17, "bold")
-    ).pack(pady=(15, 20))
-
-    form = tk.Frame(kart, bg=RENK_KART)
-    form.pack(fill="x", padx=20)
-
-    tk.Label(form, text="Sınıf", bg=RENK_KART, fg="#cdd6f4").pack(anchor="w")
-    sinif_e = tk.Entry(form)
-    sinif_e.insert(0, sinif)
-    sinif_e.pack(fill="x", pady=(4, 12))
-
-    tk.Label(form, text="Şube", bg=RENK_KART, fg="#cdd6f4").pack(anchor="w")
-    sube_e = tk.Entry(form)
-    sube_e.insert(0, sube)
-    sube_e.pack(fill="x", pady=(4, 16))
-
-    tk.Frame(form, bg="#45475a", height=1).pack(fill="x", pady=12)
-
-    bg_var = tk.IntVar(value=int(bg_acik))
-    tk.Checkbutton(
-        form,
-        text="🖼 Arka Plan Açık",
-        variable=bg_var,
-        bg=RENK_KART,
-        fg="white",
-        selectcolor=RENK_ARKA,
-        activebackground=RENK_KART,
-        activeforeground="white"
-    ).pack(anchor="w", pady=10)
-
-    def kaydet():
-        global sinif, sube, bg_acik
-        sinif = sinif_e.get()
-        sube = sube_e.get()
-        bg_acik = str(bg_var.get())
-        ayar_kaydet(sinif, sube, bg_acik)
-        baslik.config(text=f"📚 BYK Ders Kitaplığı – {sinif}/{sube} (v{yerel_surum_oku()})")
-        arka_plan_yukle()
-        win.destroy()
-
-    tk.Button(kart, text="💾 Kaydet", command=kaydet, bg=RENK_BUTON).pack(fill="x", padx=20, pady=6)
-    tk.Button(kart, text="🔄 Güncellemeleri Kontrol Et", command=guncelle, bg=RENK_BUTON).pack(fill="x", padx=20)
+        text="🖼 Bilgisayar Arka Planını Değiştir",
+        command=pc_arka_plan_degistir,
+        bg=RENK_BUTON
+    ).pack(fill="x", padx=20, pady=10)
 
 # ================== ANA ==================
 try:
@@ -185,44 +166,15 @@ try:
     )
     baslik.pack(pady=10)
 
-    tk.Button(bg_canvas, text="⚙ Ayarlar", command=ayarlar_pencere, bg=RENK_BUTON).pack(pady=5)
+    tk.Button(bg_canvas, text="⚙ Ayarlar", command=ayarlar_pencere,
+              bg=RENK_BUTON).pack(pady=5)
 
-    canvas = tk.Canvas(bg_canvas, bg=RENK_ARKA, highlightthickness=0)
-    scroll = tk.Scrollbar(bg_canvas, command=canvas.yview)
-    icerik = tk.Frame(canvas, bg=RENK_ARKA)
-
-    icerik.bind("<Configure>", lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
-    canvas.create_window((0, 0), window=icerik, anchor="nw")
-    canvas.configure(yscrollcommand=scroll.set)
-
-    canvas.pack(fill="both", expand=True, padx=20, pady=20)
-    scroll.pack(side="right", fill="y")
-
-    resimler = []
-
-    for i, (ad, pdf, resim) in enumerate(dersler):
-        kart = tk.Frame(icerik, bg=RENK_KART, padx=10, pady=10)
-        kart.grid(row=i//4, column=i%4, padx=25, pady=25)
-
-        try:
-            yol = os.path.join(BASE_DIR, resim)
-            img = ImageTk.PhotoImage(Image.open(yol)) if os.path.exists(yol) else None
-        except:
-            img = None
-
-        resimler.append(img)
-
-        tk.Button(
-            kart,
-            image=img,
-            text=ad if not img else "",
-            command=lambda p=pdf: pdf_ac(p),
-            bg=RENK_KART,
-            fg="white",
-            bd=0
-        ).pack()
-
-        tk.Label(kart, text=ad, bg=RENK_KART, fg="white").pack(pady=5)
+    tk.Button(
+        bg_canvas,
+        text="🖼 Bilgisayar Arka Planını Değiştir",
+        command=pc_arka_plan_degistir,
+        bg=RENK_BUTON
+    ).pack(pady=5)
 
     tk.Button(
         bg_canvas,
