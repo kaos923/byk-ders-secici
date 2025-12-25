@@ -6,6 +6,7 @@ import os, sys, subprocess, urllib.request, traceback
 # ================== SABİTLER ==================
 GITHUB_RAW = "https://raw.githubusercontent.com/kaos923/byk-ders-secici/main/"
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
 AYAR_DOSYA = os.path.join(BASE_DIR, "ayarlar.txt")
 VERSION_DOSYA = os.path.join(BASE_DIR, "version.txt")
 
@@ -31,9 +32,7 @@ def yerel_surum_oku():
     except:
         return "0.0"
 
-MEVCUT_SURUM = yerel_surum_oku()
-
-# ================== AYARLAR ==================
+# ================== AYAR ==================
 def ayar_yukle():
     try:
         s = open(AYAR_DOSYA, encoding="utf-8").read().splitlines()
@@ -55,19 +54,35 @@ def pdf_ac(pdf):
     except Exception as e:
         messagebox.showerror("PDF Hatası", str(e))
 
-# ================== GÜNCELLE ==================
+# ================== GÜNCELLE (DÜZELTİLDİ) ==================
 def guncelle():
     try:
-        yeni = urllib.request.urlopen(GITHUB_RAW + "version.txt", timeout=5).read().decode().strip()
-        if yeni == MEVCUT_SURUM:
-            messagebox.showinfo("Güncelleme", "Zaten güncel.")
+        yerel = yerel_surum_oku()
+
+        yeni = urllib.request.urlopen(
+            GITHUB_RAW + "version.txt?nocache=" + str(os.urandom(8)),
+            timeout=5
+        ).read().decode().strip()
+
+        if yeni == yerel:
+            messagebox.showinfo("Güncelleme", "Zaten en güncel sürüm.")
             return
-        if not messagebox.askyesno("Güncelleme", f"Yeni sürüm: {yeni}\nGüncellensin mi?"):
+
+        if not messagebox.askyesno(
+            "Güncelleme Var",
+            f"Yeni sürüm: {yeni}\nMevcut sürüm: {yerel}\n\nGüncellensin mi?"
+        ):
             return
-        kod = urllib.request.urlopen(GITHUB_RAW + "ders_secici_full.py").read().decode("utf-8")
+
+        kod = urllib.request.urlopen(
+            GITHUB_RAW + "ders_secici_full.py?nocache=" + str(os.urandom(8))
+        ).read().decode("utf-8")
+
         open(__file__, "w", encoding="utf-8").write(kod)
         open(VERSION_DOSYA, "w", encoding="utf-8").write(yeni)
+
         messagebox.showinfo("Güncellendi", "Programı yeniden başlat.")
+
     except Exception as e:
         messagebox.showerror("Güncelleme Hatası", str(e))
 
@@ -78,6 +93,7 @@ def arka_plan_yukle():
 
     if bg_acik != "1":
         return
+
     try:
         img = Image.open(os.path.join(BASE_DIR, "background.png"))
         img = img.resize((root.winfo_screenwidth(), root.winfo_screenheight()))
@@ -90,31 +106,47 @@ def arka_plan_yukle():
 def ayarlar_pencere():
     win = tk.Toplevel(root)
     win.title("Ayarlar")
-    win.geometry("360x420")
+    win.geometry("380x460")
     win.configure(bg=RENK_ARKA)
+    win.resizable(False, False)
 
-    kart = tk.Frame(win, bg=RENK_KART, padx=20, pady=20)
-    kart.pack(fill="both", expand=True, padx=20, pady=20)
+    kart = tk.Frame(win, bg=RENK_KART)
+    kart.pack(fill="both", expand=True, padx=18, pady=18)
 
-    tk.Label(kart, text="⚙ Ayarlar", bg=RENK_KART, fg="white",
-             font=("Segoe UI", 16, "bold")).pack(pady=(0, 15))
+    tk.Label(
+        kart,
+        text="⚙ Uygulama Ayarları",
+        bg=RENK_KART,
+        fg="white",
+        font=("Segoe UI", 17, "bold")
+    ).pack(pady=(15, 20))
 
-    tk.Label(kart, text="Sınıf", bg=RENK_KART, fg="white").pack(anchor="w")
-    sinif_e = tk.Entry(kart); sinif_e.insert(0, sinif); sinif_e.pack(fill="x", pady=5)
+    form = tk.Frame(kart, bg=RENK_KART)
+    form.pack(fill="x", padx=20)
 
-    tk.Label(kart, text="Şube", bg=RENK_KART, fg="white").pack(anchor="w")
-    sube_e = tk.Entry(kart); sube_e.insert(0, sube); sube_e.pack(fill="x", pady=5)
+    tk.Label(form, text="Sınıf", bg=RENK_KART, fg="#cdd6f4").pack(anchor="w")
+    sinif_e = tk.Entry(form)
+    sinif_e.insert(0, sinif)
+    sinif_e.pack(fill="x", pady=(4, 12))
+
+    tk.Label(form, text="Şube", bg=RENK_KART, fg="#cdd6f4").pack(anchor="w")
+    sube_e = tk.Entry(form)
+    sube_e.insert(0, sube)
+    sube_e.pack(fill="x", pady=(4, 16))
+
+    tk.Frame(form, bg="#45475a", height=1).pack(fill="x", pady=12)
 
     bg_var = tk.IntVar(value=int(bg_acik))
     tk.Checkbutton(
-        kart,
-        text="🖼 Arka Plan Aktif",
+        form,
+        text="🖼 Arka Plan Açık",
         variable=bg_var,
         bg=RENK_KART,
         fg="white",
+        selectcolor=RENK_ARKA,
         activebackground=RENK_KART,
-        selectcolor=RENK_ARKA
-    ).pack(pady=15, anchor="w")
+        activeforeground="white"
+    ).pack(anchor="w", pady=10)
 
     def kaydet():
         global sinif, sube, bg_acik
@@ -122,12 +154,12 @@ def ayarlar_pencere():
         sube = sube_e.get()
         bg_acik = str(bg_var.get())
         ayar_kaydet(sinif, sube, bg_acik)
-        baslik.config(text=f"📚 BYK Ders Kitaplığı – {sinif}/{sube} (v{MEVCUT_SURUM})")
+        baslik.config(text=f"📚 BYK Ders Kitaplığı – {sinif}/{sube} (v{yerel_surum_oku()})")
         arka_plan_yukle()
         win.destroy()
 
-    tk.Button(kart, text="💾 Kaydet", command=kaydet, bg=RENK_BUTON).pack(fill="x", pady=5)
-    tk.Button(kart, text="🔄 Güncellemeleri Kontrol Et", command=guncelle).pack(fill="x", pady=5)
+    tk.Button(kart, text="💾 Kaydet", command=kaydet, bg=RENK_BUTON).pack(fill="x", padx=20, pady=6)
+    tk.Button(kart, text="🔄 Güncellemeleri Kontrol Et", command=guncelle, bg=RENK_BUTON).pack(fill="x", padx=20)
 
 # ================== ANA ==================
 try:
@@ -146,15 +178,14 @@ try:
 
     baslik = tk.Label(
         bg_canvas,
-        text=f"📚 BYK Ders Kitaplığı – {sinif}/{sube} (v{MEVCUT_SURUM})",
+        text=f"📚 BYK Ders Kitaplığı – {sinif}/{sube} (v{yerel_surum_oku()})",
         bg=RENK_ARKA,
         fg="white",
         font=("Segoe UI", 20, "bold")
     )
     baslik.pack(pady=10)
 
-    tk.Button(bg_canvas, text="⚙ Ayarlar", command=ayarlar_pencere,
-              bg=RENK_BUTON).pack(pady=5)
+    tk.Button(bg_canvas, text="⚙ Ayarlar", command=ayarlar_pencere, bg=RENK_BUTON).pack(pady=5)
 
     canvas = tk.Canvas(bg_canvas, bg=RENK_ARKA, highlightthickness=0)
     scroll = tk.Scrollbar(bg_canvas, command=canvas.yview)
@@ -181,13 +212,25 @@ try:
 
         resimler.append(img)
 
-        tk.Button(kart, image=img, text=ad if not img else "",
-                  command=lambda p=pdf: pdf_ac(p),
-                  bg=RENK_KART, fg="white", bd=0).pack()
+        tk.Button(
+            kart,
+            image=img,
+            text=ad if not img else "",
+            command=lambda p=pdf: pdf_ac(p),
+            bg=RENK_KART,
+            fg="white",
+            bd=0
+        ).pack()
+
         tk.Label(kart, text=ad, bg=RENK_KART, fg="white").pack(pady=5)
 
-    tk.Button(bg_canvas, text="🚪 Çıkış", command=root.destroy,
-              bg=RENK_CIKIS, font=("Segoe UI", 12, "bold")).pack(pady=15)
+    tk.Button(
+        bg_canvas,
+        text=" Çıkış",
+        command=root.destroy,
+        bg=RENK_CIKIS,
+        font=("Segoe UI", 12, "bold")
+    ).pack(pady=15)
 
     root.mainloop()
 
