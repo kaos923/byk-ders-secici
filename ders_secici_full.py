@@ -11,24 +11,26 @@ AYAR_DOSYA = os.path.join(BASE_DIR, "ayarlar.txt")
 RENK_ARKA = "#1e1e2e"
 RENK_KART = "#313244"
 RENK_YAZI = "white"
+RENK_BUTON = "#89b4fa"
 
 # ================== AYAR ==================
 def ayar_yukle():
     try:
-        return open(AYAR_DOSYA, encoding="utf-8").read().strip()
+        s = open(AYAR_DOSYA, encoding="utf-8").read().splitlines()
+        return s[0], s[1], s[2], s[3]
     except:
-        return ""
+        return "?", "?", "1", ""
 
-def ayar_kaydet(son):
+def ayar_kaydet(sinif, sube, oto, son):
     with open(AYAR_DOSYA, "w", encoding="utf-8") as f:
-        f.write(son)
+        f.write(f"{sinif}\n{sube}\n{oto}\n{son}")
 
-son_acilan = ayar_yukle()
+sinif, sube, oto_ac, son_acilan = ayar_yukle()
 
 # ================== PDF ==================
 def pdf_ac(yol):
     try:
-        ayar_kaydet(yol)
+        ayar_kaydet(sinif, sube, oto_ac, yol)
         os.startfile(yol)
     except Exception as e:
         messagebox.showerror("PDF Hatası", str(e))
@@ -63,12 +65,9 @@ def filtrele(*_):
         w.destroy()
 
     aranan = arama.get().lower()
-    kitaplar = kitaplari_getir()
 
-    col = 0
-    row = 0
-
-    for ad, pdf, kapak in kitaplar:
+    col = row = 0
+    for ad, pdf, kapak in kitaplari_getir():
         if aranan not in ad.lower():
             continue
 
@@ -76,10 +75,7 @@ def filtrele(*_):
         kart.grid(row=row, column=col, padx=20, pady=20)
 
         try:
-            if os.path.exists(kapak):
-                img = ImageTk.PhotoImage(Image.open(kapak).resize((120,160)))
-            else:
-                img = None
+            img = ImageTk.PhotoImage(Image.open(kapak).resize((120,160))) if os.path.exists(kapak) else None
         except:
             img = None
 
@@ -102,6 +98,51 @@ def filtrele(*_):
             col = 0
             row += 1
 
+# ================== AYARLAR ==================
+def ayarlar_pencere():
+    win = tk.Toplevel(root)
+    win.title("Ayarlar")
+    win.geometry("340x360")
+    win.configure(bg=RENK_ARKA)
+
+    kart = tk.Frame(win, bg=RENK_KART, padx=20, pady=20)
+    kart.pack(fill="both", expand=True, padx=20, pady=20)
+
+    tk.Label(kart, text="⚙ Ayarlar", bg=RENK_KART, fg="white",
+             font=("Segoe UI", 16, "bold")).pack(pady=10)
+
+    tk.Label(kart, text="Sınıf", bg=RENK_KART, fg="white").pack(anchor="w")
+    sinif_e = tk.Entry(kart)
+    sinif_e.insert(0, sinif)
+    sinif_e.pack(fill="x")
+
+    tk.Label(kart, text="Şube", bg=RENK_KART, fg="white").pack(anchor="w", pady=(10,0))
+    sube_e = tk.Entry(kart)
+    sube_e.insert(0, sube)
+    sube_e.pack(fill="x")
+
+    oto_var = tk.IntVar(value=int(oto_ac))
+    tk.Checkbutton(
+        kart,
+        text="Son açılan kitabı otomatik aç",
+        variable=oto_var,
+        bg=RENK_KART,
+        fg="white",
+        selectcolor=RENK_ARKA
+    ).pack(pady=15, anchor="w")
+
+    def kaydet():
+        global sinif, sube, oto_ac
+        sinif = sinif_e.get()
+        sube = sube_e.get()
+        oto_ac = str(oto_var.get())
+        ayar_kaydet(sinif, sube, oto_ac, son_acilan)
+        baslik.config(text=f"📚 BYK Ders Kitaplığı – {sinif}/{sube}")
+        win.destroy()
+
+    tk.Button(kart, text="💾 Kaydet", command=kaydet, bg=RENK_BUTON).pack(fill="x", pady=5)
+    tk.Button(kart, text="🖼 PC Arka Planını Değiştir", command=pc_arka_plan).pack(fill="x")
+
 # ================== ARAYÜZ ==================
 root = tk.Tk()
 root.title("BYK Ders Kitaplığı")
@@ -109,30 +150,27 @@ root.attributes("-fullscreen", True)
 root.bind("<Escape>", lambda e: root.destroy())
 root.configure(bg=RENK_ARKA)
 
-tk.Label(
+baslik = tk.Label(
     root,
-    text="📚 BYK Ders Kitaplığı",
+    text=f"📚 BYK Ders Kitaplığı – {sinif}/{sube}",
     font=("Segoe UI", 22, "bold"),
     bg=RENK_ARKA,
     fg=RENK_YAZI
-).pack(pady=10)
+)
+baslik.pack(pady=10)
+
+tk.Button(root, text="⚙ Ayarlar", command=ayarlar_pencere, bg=RENK_BUTON).pack()
 
 arama = tk.StringVar()
 arama.trace_add("write", filtrele)
 
-tk.Entry(
-    root,
-    textvariable=arama,
-    font=("Segoe UI", 14)
-).pack(pady=5)
+tk.Entry(root, textvariable=arama, font=("Segoe UI", 14)).pack(pady=5)
 
 canvas = tk.Canvas(root, bg=RENK_ARKA, highlightthickness=0)
 scroll = tk.Scrollbar(root, command=canvas.yview)
 icerik = tk.Frame(canvas, bg=RENK_ARKA)
 
-icerik.bind("<Configure>", lambda e:
-    canvas.configure(scrollregion=canvas.bbox("all")))
-
+icerik.bind("<Configure>", lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
 canvas.create_window((0, 0), window=icerik, anchor="nw")
 canvas.configure(yscrollcommand=scroll.set)
 
@@ -141,20 +179,10 @@ scroll.pack(side="right", fill="y")
 
 filtrele()
 
-# Son açılan kitabı otomatik açma (isteğe bağlı)
-if son_acilan and os.path.exists(son_acilan):
+# Son açılan kitap
+if oto_ac == "1" and son_acilan and os.path.exists(son_acilan):
     pdf_ac(son_acilan)
 
-tk.Button(
-    root,
-    text="🖼 PC Arka Planını Değiştir",
-    command=pc_arka_plan
-).pack(pady=5)
-
-tk.Button(
-    root,
-    text="❌ Çıkış",
-    command=root.destroy
-).pack(pady=10)
+tk.Button(root, text="❌ Çıkış", command=root.destroy).pack(pady=10)
 
 root.mainloop()
