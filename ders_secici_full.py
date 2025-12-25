@@ -1,14 +1,13 @@
 import tkinter as tk
 from tkinter import messagebox, filedialog
 from PIL import Image, ImageTk
-import os, sys, ctypes, urllib.request, random
+import os, sys, subprocess, ctypes, urllib.request
 
 # ================== SABİTLER ==================
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 KITAP_DIR = os.path.join(BASE_DIR, "kitaplar")
 AYAR_DOSYA = os.path.join(BASE_DIR, "ayarlar.txt")
 VERSION_DOSYA = os.path.join(BASE_DIR, "version.txt")
-ANA_DOSYA = os.path.basename(__file__)
 
 GITHUB_RAW = "https://raw.githubusercontent.com/kaos923/byk-ders-secici/main/"
 
@@ -30,6 +29,48 @@ def ayar_kaydet(sinif, sube, oto, son):
         f.write(f"{sinif}\n{sube}\n{oto}\n{son}")
 
 sinif, sube, oto_ac, son_acilan = ayar_yukle()
+
+# ================== VERSION ==================
+def yerel_surum():
+    try:
+        return open(VERSION_DOSYA, encoding="utf-8").read().strip()
+    except:
+        return "0.0"
+
+# ================== GÜNCELLE ==================
+def guncelle():
+    try:
+        yerel = yerel_surum()
+        yeni = urllib.request.urlopen(
+            GITHUB_RAW + "version.txt?nocache=" + os.urandom(6).hex(),
+            timeout=5
+        ).read().decode().strip()
+
+        if yeni == yerel:
+            messagebox.showinfo("Güncelleme", "Zaten güncel.")
+            return
+
+        if not messagebox.askyesno(
+            "Güncelleme",
+            f"Yeni sürüm: {yeni}\nMevcut sürüm: {yerel}\n\nGüncellensin mi?"
+        ):
+            return
+
+        kod = urllib.request.urlopen(
+            GITHUB_RAW + "main.py?nocache=" + os.urandom(6).hex(),
+            timeout=10
+        ).read().decode("utf-8")
+
+        with open(__file__, "w", encoding="utf-8") as f:
+            f.write(kod)
+
+        with open(VERSION_DOSYA, "w", encoding="utf-8") as f:
+            f.write(yeni)
+
+        messagebox.showinfo("Bitti", "Güncellendi. Programı yeniden başlat.")
+
+    except Exception as e:
+        messagebox.showerror("Hata", str(e))
 
 # ================== PDF ==================
 def pdf_ac(yol):
@@ -78,7 +119,7 @@ def filtrele(*_):
         kart.grid(row=row, column=col, padx=20, pady=20)
 
         try:
-            img = ImageTk.PhotoImage(Image.open(kapak).resize((120, 160))) if os.path.exists(kapak) else None
+            img = ImageTk.PhotoImage(Image.open(kapak).resize((120,160))) if os.path.exists(kapak) else None
         except:
             img = None
 
@@ -88,8 +129,8 @@ def filtrele(*_):
             text=ad if not img else "",
             bg=RENK_KART,
             fg=RENK_YAZI,
-            command=lambda p=pdf: pdf_ac(p),
-            bd=0
+            bd=0,
+            command=lambda p=pdf: pdf_ac(p)
         )
         btn.image = img
         btn.pack()
@@ -101,67 +142,26 @@ def filtrele(*_):
             col = 0
             row += 1
 
-# ================== GÜNCELLEME ==================
-def yerel_surum():
-    try:
-        return open(VERSION_DOSYA, encoding="utf-8").read().strip()
-    except:
-        return "0.0"
-
-def guncelle():
-    try:
-        cache = "?v=" + str(random.randint(1000, 9999))
-
-        yeni = urllib.request.urlopen(
-            GITHUB_RAW + "version.txt" + cache,
-            timeout=5
-        ).read().decode().strip()
-
-        mevcut = yerel_surum()
-
-        if yeni == mevcut:
-            messagebox.showinfo("Güncelleme", "Zaten güncel.")
-            return
-
-        if not messagebox.askyesno(
-            "Güncelleme",
-            f"Yeni sürüm: {yeni}\nMevcut: {mevcut}\n\nGüncellensin mi?"
-        ):
-            return
-
-        kod = urllib.request.urlopen(
-            GITHUB_RAW + ANA_DOSYA + cache,
-            timeout=10
-        ).read().decode("utf-8")
-
-        open(__file__, "w", encoding="utf-8").write(kod)
-        open(VERSION_DOSYA, "w", encoding="utf-8").write(yeni)
-
-        messagebox.showinfo("Güncellendi", "Program yeniden başlatılacak.")
-        root.destroy()
-
-    except Exception as e:
-        messagebox.showerror("Güncelleme Hatası", str(e))
-
 # ================== AYARLAR ==================
 def ayarlar_pencere():
     win = tk.Toplevel(root)
     win.title("Ayarlar")
-    win.geometry("350x420")
+    win.geometry("380x480")
     win.configure(bg=RENK_ARKA)
+    win.resizable(False, False)
 
     kart = tk.Frame(win, bg=RENK_KART, padx=20, pady=20)
     kart.pack(fill="both", expand=True, padx=20, pady=20)
 
     tk.Label(kart, text="⚙ Ayarlar", bg=RENK_KART, fg="white",
-             font=("Segoe UI", 16, "bold")).pack(pady=10)
+             font=("Segoe UI", 18, "bold")).pack(pady=10)
 
     tk.Label(kart, text="Sınıf", bg=RENK_KART, fg="white").pack(anchor="w")
     sinif_e = tk.Entry(kart)
     sinif_e.insert(0, sinif)
     sinif_e.pack(fill="x")
 
-    tk.Label(kart, text="Şube", bg=RENK_KART, fg="white").pack(anchor="w", pady=(10, 0))
+    tk.Label(kart, text="Şube", bg=RENK_KART, fg="white").pack(anchor="w", pady=(10,0))
     sube_e = tk.Entry(kart)
     sube_e.insert(0, sube)
     sube_e.pack(fill="x")
@@ -174,7 +174,7 @@ def ayarlar_pencere():
         bg=RENK_KART,
         fg="white",
         selectcolor=RENK_ARKA
-    ).pack(pady=15, anchor="w")
+    ).pack(anchor="w", pady=15)
 
     def kaydet():
         global sinif, sube, oto_ac
@@ -186,9 +186,9 @@ def ayarlar_pencere():
         win.destroy()
 
     tk.Button(kart, text="💾 Kaydet", command=kaydet, bg=RENK_BUTON).pack(fill="x", pady=5)
-    tk.Button(kart, text="🖼 PC Arka Planı", command=pc_arka_plan).pack(fill="x")
+    tk.Button(kart, text="🖼 PC Arka Planını Değiştir", command=pc_arka_plan).pack(fill="x", pady=5)
     tk.Button(kart, text="🔄 Güncellemeleri Kontrol Et", command=guncelle,
-              bg=RENK_BUTON).pack(fill="x", pady=(10, 0))
+              bg="#a6e3a1", font=("Segoe UI", 11, "bold")).pack(fill="x", pady=(15,0))
 
 # ================== ARAYÜZ ==================
 root = tk.Tk()
@@ -206,11 +206,11 @@ baslik = tk.Label(
 )
 baslik.pack(pady=10)
 
-tk.Button(root, text="⚙ Ayarlar", command=ayarlar_pencere,
-          bg=RENK_BUTON).pack()
+tk.Button(root, text="⚙ Ayarlar", command=ayarlar_pencere, bg=RENK_BUTON).pack()
 
 arama = tk.StringVar()
 arama.trace_add("write", filtrele)
+
 tk.Entry(root, textvariable=arama, font=("Segoe UI", 14)).pack(pady=5)
 
 canvas = tk.Canvas(root, bg=RENK_ARKA, highlightthickness=0)
